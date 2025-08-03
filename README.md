@@ -320,3 +320,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [ ] Advanced analytics dashboard
 
 ---
+
+**Built with ❤️ for the financial industry**

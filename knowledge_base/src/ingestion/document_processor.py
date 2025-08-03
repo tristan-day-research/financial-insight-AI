@@ -171,6 +171,48 @@ class FinancialDocumentProcessor:
         
         return text.strip()
     
+    def _extract_and_save_metrics(self, file_path: str, metadata: Dict):
+        """Extract financial metrics from document and save to database."""
+        try:
+            # Get company ID from metadata
+            company_id = metadata.get('ticker', metadata.get('company_id', 'UNKNOWN'))
+            
+            # Extract metrics using the SEC extractor
+            metrics = self.metrics_extractor.process_document(file_path, company_id)
+            
+            if metrics:
+                logger.info(f"Extracted {len(metrics)} financial metrics from {file_path}")
+                
+                # Get document primary key from database
+                from knowledge_base.src.storage.sql_store import FinancialSQLStore
+                sql_store = FinancialSQLStore()
+                
+                # Find the document in the database
+                session = sql_store.get_session()
+                try:
+                    from knowledge_base.src.storage.sql_store import Document
+                    document = session.query(Document).filter(
+                        Document.document_id == metadata.get('accession_number', '')
+                    ).first()
+                    
+                    if document:
+                        # Save metrics to database
+                        success = self.metrics_manager.save_extracted_metrics(metrics, document.document_pk)
+                        if success:
+                            logger.info(f"Successfully saved {len(metrics)} metrics to database")
+                        else:
+                            logger.error("Failed to save metrics to database")
+                    else:
+                        logger.warning(f"Document not found in database for {file_path}")
+                        
+                finally:
+                    session.close()
+            else:
+                logger.info(f"No financial metrics extracted from {file_path}")
+                
+        except Exception as e:
+            logger.error(f"Error extracting metrics from {file_path}: {e}")
+    
     def _extract_sec_sections(self, text: str) -> Dict[str, str]:
         """Extract major sections from SEC filing."""
         sections = {}

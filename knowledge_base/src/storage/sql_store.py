@@ -501,22 +501,24 @@ def main():
     """Example usage of SQL store."""
     sql_store = FinancialSQLStore()
     
-    # Add sample client
+    # Example of how client data would be added during SEC filing processing
+    # This would normally happen automatically in sec_downloader.py when processing new filings
     client_data = {
-        "id": "AAPL",
-        "company_name": "Apple Inc.",
-        "cik": "0000320193",
-        "industry": "Technology",
-        "sector": "Consumer Electronics"
+        "id": "RDDT",
+        "company_name": "Reddit, Inc.",
+        "cik": "0001713445",
+        "industry": "Technology",  # These could be fetched from SEC/financial data APIs
+        "sector": "Social Media",
+        "market_cap": None
     }
     sql_store.add_client(client_data)
     
-    # Add sample document
+    # Example document processing
     doc_data = {
-        "document_id": "AAPL_10K_2023",
-        "client_id": "AAPL",
-        "filing_type": "10-K",
-        "filing_date": "2023-10-27",
+        "document_id": "0001713445-25-000196",  # Actual SEC accession number
+        "client_id": "RDDT",
+        "filing_type": "10-Q",
+        "filing_date": "2025-06-30",
         "file_path": "/path/to/document.txt",
         "file_size": 1000000,
         "download_date": datetime.utcnow(),
@@ -526,28 +528,29 @@ def main():
     }
     doc_id = sql_store.add_document(doc_data)
     
-    # Add sample financial metrics
+    # Example metrics extraction
     metrics_data = [
         {
-            "client_id": "AAPL",
+            "client_id": "RDDT",
             "document_pk": doc_id,
             "metric_name": "revenue",
-            "metric_value": 394328000000,
+            "metric_value": 500000000,
             "metric_unit": "USD",
-            "period_type": "annual",
-            "fiscal_year": 2023,
+            "period_type": "quarterly",
+            "fiscal_year": 2025,
+            "fiscal_quarter": 2,
             "source_section": "Consolidated Statements of Operations"
         }
     ]
     sql_store.add_financial_metrics(metrics_data)
     
-    # Query data
-    print("Client Statistics:")
+    # Query and display results
+    print("\nClient Statistics:")
     stats = sql_store.get_client_statistics()
     print(stats)
     
-    print("\nFinancial Metrics:")
-    metrics = sql_store.get_financial_metrics(client_id="AAPL")
+    print("\nFinancial Metrics for RDDT:")
+    metrics = sql_store.get_financial_metrics(client_id="RDDT")
     print(metrics)
 
 

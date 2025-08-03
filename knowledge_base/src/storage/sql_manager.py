@@ -46,8 +46,8 @@ class FinancialMetricsManager:
         try:
             for metric in metrics:
                 # Convert extracted metric to SQL model
-                sql_metric = self._convert_to_sql_metric(metric, document_id)
-                
+                sql_metric = self._convert_to_sql_metric(metric, document_pk)
+ 
                 # Check if metric already exists (upsert behavior)
                 existing = session.query(SQLFinancialMetric).filter(
                     SQLFinancialMetric.client_id == sql_metric.client_id,

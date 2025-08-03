@@ -55,6 +55,9 @@ import pdfplumber
 import pandas as pd
 from decimal import Decimal
 import decimal
+import logging
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class FinancialMetric:
@@ -345,6 +348,11 @@ class SECDataExtractor:
                 text = f.read()
                 
             print(f"Original text length: {len(text)} characters")
+            
+            # Check if this is an XBRL file
+            if '<ix:nonFraction' in text or '<ix:nonNumeric' in text:
+                print("Detected XBRL content, extracting from XBRL...")
+                return self._extract_from_xbrl_text(text, company_id, file_path.name)
                 
             # Clean HTML entities and tags if this appears to be HTML
             if file_path.suffix.lower() in ['.html', '.htm']:
@@ -569,6 +577,72 @@ class SECDataExtractor:
             )
             
         return validation_results
+
+    def _extract_from_xbrl_text(self, text: str, company_id: str, source_doc: str) -> List[FinancialMetric]:
+        """
+        Extract financial metrics from XBRL content embedded in text.
+        """
+        from bs4 import BeautifulSoup
+        import re
+        
+        metrics = []
+        soup = BeautifulSoup(text, 'lxml-xml')  # Use XML parser for XBRL
+        
+        # Try case-sensitive search for both tag casings
+        tags = soup.find_all(['ix:nonNumeric', 'ix:nonFraction'])
+        logger.info(f"Case-sensitive: Found {len(tags)} XBRL tags (ix:nonNumeric or ix:nonFraction)")
+        
+        # Fallback: search all tags and filter by tag name lowercased
+        if len(tags) == 0:
+            all_tags = soup.find_all(True)
+            tags = [tag for tag in all_tags if tag.name.lower() in ('ix:nonnumeric', 'ix:nonfraction')]
+            logger.info(f"Fallback: Found {len(tags)} XBRL tags (ix:nonnumeric or ix:nonfraction, case-insensitive)")
+        
+        for i, tag in enumerate(tags[:5]):
+            logger.info(f"Tag {i+1}: {str(tag)[:200]}")
+            logger.info(f"Attributes: {tag.attrs}")
+        
+        for tag in tags:
+            try:
+                name = tag.get('name', '')
+                if not name.startswith('us-gaap:'):
+                    logger.debug(f"Skipping non-us-gaap tag: {name}")
+                    continue
+                value = tag.get('value')
+                if value is None:
+                    value = tag.text.strip()
+                unit = tag.get('unitref', '')
+                context_ref = tag.get('contextref', '')
+                if not name or not value:
+                    continue
+                period = context_ref or ""
+                metric_name = self._standardize_metric_name(name)
+                if not metric_name:
+                    logger.debug(f"Skipping non-standard metric name: {name}")
+                    continue
+                try:
+                    numeric_value = Decimal(value.replace(',', ''))
+                except Exception as e:
+                    logger.debug(f"Could not parse value for {name}: {value} ({e})")
+                    continue
+                metrics.append(
+                    FinancialMetric(
+                        company_id=company_id,
+                        metric_name=metric_name,
+                        value=numeric_value,
+                        period=period,
+                        unit=unit,
+                        source_document=source_doc,
+                        extraction_method="xbrl",
+                        confidence=0.95,
+                        raw_text=str(tag)[:200]
+                    )
+                )
+                logger.debug(f"Extracted XBRL metric: {metric_name} = {numeric_value} {unit}")
+            except Exception as e:
+                logger.warning(f"Error parsing XBRL tag: {e}")
+        logger.info(f"Extracted {len(metrics)} metrics from XBRL content")
+        return metrics
 
 
 def main():
