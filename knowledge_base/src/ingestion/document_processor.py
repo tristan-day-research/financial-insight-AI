@@ -26,6 +26,8 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from knowledge_base.config.settings import get_settings
+from knowledge_base.src.ingestion.sql_extractor import SECDataExtractor
+from knowledge_base.src.storage.sql_manager import FinancialMetricsManager
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +51,10 @@ class FinancialDocumentProcessor:
             ],
             keep_separator=True
         )
+        
+        # Initialize financial metrics extraction components
+        self.metrics_extractor = SECDataExtractor()
+        self.metrics_manager = FinancialMetricsManager()
         
         # Enhanced financial section patterns
         self.financial_section_patterns = [
@@ -98,6 +104,10 @@ class FinancialDocumentProcessor:
                 chunks = self._create_financial_chunks(cleaned_text, "full_document", metadata)
             
             logger.info(f"Processed {file_path}: {len(chunks)} chunks created")
+            
+            # Extract and save financial metrics
+            self._extract_and_save_metrics(file_path, metadata)
+            
             return chunks
             
         except Exception as e:

@@ -54,6 +54,7 @@ import xml.etree.ElementTree as ET
 import pdfplumber
 import pandas as pd
 from decimal import Decimal
+import decimal
 
 @dataclass
 class FinancialMetric:
@@ -89,14 +90,25 @@ class SECDataExtractor:
         self.financial_patterns = {
             'revenue': [
                 r'(?:net\s+)?(?:revenues?|sales|net\s+sales)\s*[:\s]*\$?\s*([\d,]+(?:\.\d+)?)\s*(?:million|billion|thousand)?',
-                r'total\s+(?:net\s+)?revenues?\s*[:\s]*\$?\s*([\d,]+(?:\.\d+)?)\s*(?:million|billion|thousand)?'
+                r'total\s+(?:net\s+)?revenues?\s*[:\s]*\$?\s*([\d,]+(?:\.\d+)?)\s*(?:million|billion|thousand)?',
+                r'(?:revenue|sales)\s*[:\s]*\$?\s*([\d,]+(?:\.\d+)?)\s*(?:million|billion|thousand)?'
             ],
             'net_income': [
                 r'net\s+(?:income|earnings?)\s*[:\s]*\$?\s*([\d,\-]+(?:\.\d+)?)\s*(?:million|billion|thousand)?',
-                r'(?:net\s+)?(?:income|earnings?)\s+(?:loss\s+)?attributable.*?\$?\s*([\d,\-]+(?:\.\d+)?)\s*(?:million|billion|thousand)?'
+                r'(?:net\s+)?(?:income|earnings?)\s+(?:loss\s+)?attributable.*?\$?\s*([\d,\-]+(?:\.\d+)?)\s*(?:million|billion|thousand)?',
+                r'net\s+(?:income|earnings?)\s*[:\s]*\$?\s*([\d,\-]+(?:\.\d+)?)'
             ],
             'total_assets': [
-                r'total\s+assets\s*[:\s]*\$?\s*([\d,]+(?:\.\d+)?)\s*(?:million|billion|thousand)?'
+                r'total\s+assets\s*[:\s]*\$?\s*([\d,]+(?:\.\d+)?)\s*(?:million|billion|thousand)?',
+                r'assets\s*[:\s]*\$?\s*([\d,]+(?:\.\d+)?)\s*(?:million|billion|thousand)?'
+            ],
+            'total_liabilities': [
+                r'total\s+liabilities\s*[:\s]*\$?\s*([\d,]+(?:\.\d+)?)\s*(?:million|billion|thousand)?',
+                r'liabilities\s*[:\s]*\$?\s*([\d,]+(?:\.\d+)?)\s*(?:million|billion|thousand)?'
+            ],
+            'shareholders_equity': [
+                r'(?:shareholders?|stockholders?)\s+equity\s*[:\s]*\$?\s*([\d,]+(?:\.\d+)?)\s*(?:million|billion|thousand)?',
+                r'equity\s*[:\s]*\$?\s*([\d,]+(?:\.\d+)?)\s*(?:million|billion|thousand)?'
             ]
         }
 
@@ -332,15 +344,66 @@ class SECDataExtractor:
             with open(file_path, 'r', encoding='utf-8') as f:
                 text = f.read()
                 
+            print(f"Original text length: {len(text)} characters")
+                
+            # Clean HTML entities and tags if this appears to be HTML
+            if file_path.suffix.lower() in ['.html', '.htm']:
+                text = self._clean_html_text(text)
+                print(f"Cleaned text length: {len(text)} characters")
+                
             return self._extract_from_text_content(text, company_id, file_path.name)
             
         except Exception as e:
             print(f"Error reading text file {file_path}: {e}")
             return []
 
+    def _clean_html_text(self, text: str) -> str:
+        """Clean HTML text for better extraction"""
+        import html
+        
+        # Decode HTML entities
+        text = html.unescape(text)
+        
+        # Remove HTML tags
+        text = re.sub(r'<[^>]+>', ' ', text)
+        
+        # Remove extra whitespace
+        text = re.sub(r'\s+', ' ', text)
+        
+        # Remove common HTML artifacts and non-breaking spaces
+        text = re.sub(r'&[a-zA-Z0-9#]+;', '', text)
+        text = re.sub(r'\xa0', ' ', text)  # Remove non-breaking spaces
+        
+        # Remove page numbers and navigation elements
+        text = re.sub(r'Page \d+', '', text)
+        text = re.sub(r'Table of Contents', '', text)
+        
+        # Remove XBRL tags that might interfere
+        text = re.sub(r'<ix:[^>]+>', '', text)
+        text = re.sub(r'</ix:[^>]+>', '', text)
+        
+        return text.strip()
+
+    def _has_financial_content(self, text: str) -> bool:
+        """Check if text contains financial content"""
+        financial_keywords = [
+            'revenue', 'income', 'assets', 'liabilities', 'equity', 'cash',
+            'million', 'billion', 'thousand', 'dollars', 'financial',
+            'balance sheet', 'income statement', 'cash flow'
+        ]
+        
+        text_lower = text.lower()
+        return any(keyword in text_lower for keyword in financial_keywords)
+
     def _extract_from_text_content(self, text: str, company_id: str, source_doc: str) -> List[FinancialMetric]:
         """Extract metrics from text content using patterns"""
         metrics = []
+        
+        # Check if text contains financial content
+        if not self._has_financial_content(text):
+            print(f"No financial content detected in {source_doc}")
+            return metrics
+            
         period = self._extract_period_from_text(text)
         
         for metric_name, patterns in self.financial_patterns.items():
@@ -350,6 +413,11 @@ class SECDataExtractor:
                 for match in matches:
                     try:
                         raw_value = match.group(1)
+                        
+                        # Additional validation - ensure it's actually a number
+                        if not re.match(r'^[\d,\-\.]+$', raw_value):
+                            continue
+                            
                         numeric_value = self._extract_numeric_value(raw_value)
                         
                         if numeric_value is not None:
@@ -365,7 +433,7 @@ class SECDataExtractor:
                                 raw_text=match.group(0)
                             )
                             metrics.append(metric)
-                            break
+                            break  # Take first match for each metric
                             
                     except (ValueError, IndexError):
                         continue
@@ -377,10 +445,18 @@ class SECDataExtractor:
         if not text:
             return None
             
-        # Remove common formatting
+        # Remove HTML entities and common formatting
         clean_text = re.sub(r'[^\d.,\-]', '', str(text))
         clean_text = clean_text.replace(',', '')
         
+        # Additional validation - ensure we have actual digits
+        if not re.search(r'\d', clean_text):
+            return None
+            
+        # Ensure we don't have just dots or dashes
+        if clean_text in ['.', '-', '..', '--', '.-', '-.']:
+            return None
+            
         try:
             value = Decimal(clean_text)
             
@@ -399,7 +475,7 @@ class SECDataExtractor:
                 
             return value
             
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, decimal.ConversionSyntax):
             return None
 
     def _extract_period_from_text(self, text: str) -> str:

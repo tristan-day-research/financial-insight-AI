@@ -27,13 +27,13 @@ class FinancialMetricsManager:
     def __init__(self):
         self.sql_store = FinancialSQLStore()
     
-    def save_extracted_metrics(self, metrics: List[ExtractedMetric], document_id: int) -> bool:
+    def save_extracted_metrics(self, metrics: List[ExtractedMetric], document_pk: int) -> bool:
         """
         Save extracted financial metrics to the database.
         
         Args:
             metrics: List of extracted financial metrics
-            document_id: ID of the document from which metrics were extracted
+            document_pk: Primary key of the document from which metrics were extracted
             
         Returns:
             bool: Success status
@@ -53,7 +53,7 @@ class FinancialMetricsManager:
                     SQLFinancialMetric.client_id == sql_metric.client_id,
                     SQLFinancialMetric.metric_name == sql_metric.metric_name,
                     SQLFinancialMetric.period_end_date == sql_metric.period_end_date,
-                    SQLFinancialMetric.document_id == sql_metric.document_id
+                    SQLFinancialMetric.document_pk == sql_metric.document_pk
                 ).first()
                 
                 if existing:
@@ -80,7 +80,7 @@ class FinancialMetricsManager:
         finally:
             session.close()
     
-    def _convert_to_sql_metric(self, extracted_metric: ExtractedMetric, document_id: int) -> SQLFinancialMetric:
+    def _convert_to_sql_metric(self, extracted_metric: ExtractedMetric, document_pk: int) -> SQLFinancialMetric:
         """Convert extracted metric to SQL model."""
         
         # Parse period information
@@ -88,7 +88,7 @@ class FinancialMetricsManager:
         
         return SQLFinancialMetric(
             client_id=extracted_metric.company_id,
-            document_id=document_id,
+            document_pk=document_pk,
             metric_name=extracted_metric.metric_name,
             metric_value=float(extracted_metric.value),
             metric_unit=extracted_metric.unit,

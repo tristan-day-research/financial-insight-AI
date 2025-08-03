@@ -55,8 +55,8 @@ class Document(Base):
     """Document metadata table."""
     __tablename__ = "documents"
     
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    document_id = Column(String(100), unique=True, index=True)  # Unique document identifier
+    document_pk = Column(Integer, primary_key=True, autoincrement=True)  # Internal primary key
+    document_id = Column(String(100), unique=True, index=True)  # Unique document identifier (SEC accession number)
     client_id = Column(String(20), ForeignKey("clients.id"), index=True)
     
     # Document information
@@ -93,7 +93,7 @@ class Document(Base):
     )
     
     def __repr__(self):
-        return f"<Document(id='{self.document_id}', client='{self.client_id}', type='{self.filing_type}')>"
+        return f"<Document(document_id='{self.document_id}', client='{self.client_id}', type='{self.filing_type}')>"
 
 
 class DocumentChunk(Base):
@@ -101,7 +101,7 @@ class DocumentChunk(Base):
     __tablename__ = "document_chunks"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    document_id = Column(Integer, ForeignKey("documents.id"), index=True)
+    document_pk = Column(Integer, ForeignKey("documents.document_pk"), index=True)  # Reference to document primary key
     chunk_index = Column(Integer)
     
     # Chunk content metadata
@@ -123,7 +123,7 @@ class DocumentChunk(Base):
     
     # Indexes
     __table_args__ = (
-        Index('idx_document_chunk', 'document_id', 'chunk_index'),
+        Index('idx_document_chunk', 'document_pk', 'chunk_index'),
         Index('idx_section', 'section'),
         Index('idx_content_type', 'content_type'),
     )
@@ -135,7 +135,7 @@ class FinancialMetric(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     client_id = Column(String(20), ForeignKey("clients.id"), index=True)
-    document_id = Column(Integer, ForeignKey("documents.id"))
+    document_pk = Column(Integer, ForeignKey("documents.document_pk"))  # Reference to document primary key
     
     # Metric information
     metric_name = Column(String(100), index=True)  # revenue, net_income, etc.
@@ -240,18 +240,18 @@ class FinancialSQLStore:
             if existing_doc:
                 # Update existing document
                 for key, value in document_data.items():
-                    if hasattr(existing_doc, key) and key != "id":
+                    if hasattr(existing_doc, key) and key != "document_pk":
                         setattr(existing_doc, key, value)
                 existing_doc.processed_date = datetime.utcnow()
                 session.commit()
-                return existing_doc.id
+                return existing_doc.document_pk
             else:
                 # Create new document
                 document = Document(**document_data)
                 session.add(document)
                 session.commit()
                 logger.info(f"Added document: {document_data['document_id']}")
-                return document.id
+                return document.document_pk
                 
         except SQLAlchemyError as e:
             session.rollback()
@@ -307,7 +307,7 @@ class FinancialSQLStore:
             result = []
             for doc in documents:
                 result.append({
-                    "id": doc.id,
+                    "document_pk": doc.document_pk,
                     "document_id": doc.document_id,
                     "filing_type": doc.filing_type,
                     "filing_date": doc.filing_date,
@@ -379,25 +379,37 @@ class FinancialSQLStore:
         session = self.get_session()
         try:
             # Query with joins to get comprehensive stats
-            query = """
+            from sqlalchemy import text
+            query = text("""
                 SELECT 
                     c.id as client_id,
                     c.company_name,
                     c.industry,
-                    COUNT(DISTINCT d.id) as document_count,
+                    COUNT(DISTINCT d.document_pk) as document_count,
                     COUNT(DISTINCT dc.id) as chunk_count,
                     COUNT(DISTINCT fm.id) as metric_count,
                     AVG(d.financial_density) as avg_financial_density,
                     MAX(d.processed_date) as last_processed
                 FROM clients c
                 LEFT JOIN documents d ON c.id = d.client_id
-                LEFT JOIN document_chunks dc ON d.id = dc.document_id
+                LEFT JOIN document_chunks dc ON d.document_pk = dc.document_pk
                 LEFT JOIN financial_metrics fm ON c.id = fm.client_id
                 GROUP BY c.id, c.company_name, c.industry
-            """
+            """)
             
             result = session.execute(query)
-            data = [dict(row) for row in result]
+            data = []
+            for row in result:
+                data.append({
+                    'client_id': row[0],
+                    'company_name': row[1],
+                    'industry': row[2],
+                    'document_count': row[3],
+                    'chunk_count': row[4],
+                    'metric_count': row[5],
+                    'avg_financial_density': row[6],
+                    'last_processed': row[7]
+                })
             
             return pd.DataFrame(data)
             
@@ -465,10 +477,10 @@ class FinancialSQLStore:
             # Delete in proper order due to foreign key constraints
             session.query(FinancialMetric).filter(FinancialMetric.client_id == client_id).delete()
             
-            # Get document IDs for chunk deletion
-            doc_ids = [doc.id for doc in session.query(Document.id).filter(Document.client_id == client_id).all()]
-            if doc_ids:
-                session.query(DocumentChunk).filter(DocumentChunk.document_id.in_(doc_ids)).delete()
+            # Get document primary keys for chunk deletion
+            doc_pks = [doc.document_pk for doc in session.query(Document.document_pk).filter(Document.client_id == client_id).all()]
+            if doc_pks:
+                session.query(DocumentChunk).filter(DocumentChunk.document_pk.in_(doc_pks)).delete()
             
             session.query(Document).filter(Document.client_id == client_id).delete()
             session.query(Client).filter(Client.id == client_id).delete()
@@ -518,7 +530,7 @@ def main():
     metrics_data = [
         {
             "client_id": "AAPL",
-            "document_id": doc_id,
+            "document_pk": doc_id,
             "metric_name": "revenue",
             "metric_value": 394328000000,
             "metric_unit": "USD",
