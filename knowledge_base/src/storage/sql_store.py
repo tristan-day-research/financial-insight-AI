@@ -230,6 +230,15 @@ class FinancialSQLStore:
     
     def add_document(self, document_data: Dict) -> Optional[int]:
         """Add document metadata."""
+
+        # Normalize file_path to be relative
+        if "file_path" in document_data:
+            project_root = Path(__file__).parent.parent.parent.parent  # Adjust as needed
+            try:
+                document_data["file_path"] = str(Path(document_data["file_path"]).relative_to(project_root))
+            except ValueError:
+                # If already relative, leave as is
+                document_data["file_path"] = str(Path(document_data["file_path"]))
         session = self.get_session()
         try:
             # Check if document exists
