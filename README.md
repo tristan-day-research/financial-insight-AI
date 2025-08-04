@@ -1,4 +1,5 @@
-Financial Planning RAG System
+# Financial Planning RAG System with Multi-Tenent Knowledge Base 
+
 A comprehensive Retrieval-Augmented Generation (RAG) system that transforms unstructured financial documents into an intelligent knowledge base for automated financial planning, reporting, and forecasting.
 🎯 Problem Statement
 Financial planning companies face significant challenges in managing client data:
