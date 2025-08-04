@@ -190,24 +190,6 @@ See `knowledge_base/config/settings.py` for detailed configuration options inclu
 - Logging configuration
 - Security and privacy settings
 
-## 🔧 Development
-
-### Running Tests
-```bash
-pytest tests/ -v --cov=knowledge_base
-```
-
-### Code Formatting
-```bash
-black knowledge_base/
-```
-
-### Linting
-```bash
-flake8 knowledge_base/
-mypy knowledge_base/
-```
-
 ## 📊 Usage Examples
 
 ### 1. Document Ingestion Pipeline
@@ -320,5 +302,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [ ] Advanced analytics dashboard
 
 ---
-
-**Built with ❤️ for the financial industry**
