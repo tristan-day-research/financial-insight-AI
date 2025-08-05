@@ -29,7 +29,7 @@ The system implements a sophisticated multi-tenant architecture that leverages t
 - Personalized financial insights and recommendations
 - Dedicated vector spaces and SQL schemas per client
 
-**Global Aggregate KB (Intelligence Layer)**
+**Global Multi-tenent KB (Intelligence Layer)**
 - **Anonymized Cross-Client Learning**: Patterns and insights extracted from all clients without exposing individual data
 - **Industry Benchmarking**: Real-time comparative analysis against similar businesses
 - **Predictive Model Enhancement**: Machine learning models trained on aggregate data improve individual client forecasts
@@ -67,11 +67,10 @@ The system implements a sophisticated multi-tenant architecture that leverages t
 ## 🛠️ Technical Stack
 
 ### Backend
-- **Vector Database**: Chroma/Pinecone for semantic search
-- **SQL Database**: PostgreSQL for structured financial data
+- **Vector Database**: Chroma for semantic search
+- **SQL Database**: SQLite for structured financial data
 - **Document Storage**: S3/MinIO for raw document storage
 - **API Framework**: FastAPI for REST endpoints
-- **Processing**: Python with Pandas, NumPy for data manipulation
 
 ### AI/ML Components
 - **Embeddings**: OpenAI/Sentence-Transformers for document vectorization
