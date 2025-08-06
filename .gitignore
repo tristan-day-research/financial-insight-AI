@@ -1,10 +1,21 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Docker info
+.docker-compose.yml
+
 # Cursor ignore file
 .cursorignore
 
-# Ignore all files in the data, logs, and venv directories
+# Ignore all files in the data, logs
 data/
 logs/
-venv/
 
 
 # Byte-compiled / optimized / DLL files
@@ -128,14 +139,6 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
 
 # Spyder project settings
 .spyderproject

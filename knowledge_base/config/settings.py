@@ -21,21 +21,25 @@ class DatabaseSettings(BaseSettings):
     # SQLite database
     sqlite_db_path: str = Field(default="knowledge_base/data/financial_kb.db")
     
-    # Vector database settings
-    vector_db_type: str = Field(default="faiss", description="Vector database type: faiss, chromadb, or pinecone")
-    faiss_index_path: str = Field(default="knowledge_base/data/faiss_index")
-    chromadb_path: str = Field(default="knowledge_base/data/chromadb")
-    
-    # Pinecone settings (if using Pinecone)
-    pinecone_api_key: Optional[SecretStr] = Field(default=None, description="Pinecone API key")
-    pinecone_environment: Optional[str] = Field(default=None, description="Pinecone environment")
-    pinecone_index_name: Optional[str] = Field(default=None, description="Pinecone index name")
+    # Qdrant Vector Database settings
+    qdrant_url: Optional[str] = Field(default=None, description="Qdrant server URL")
+    qdrant_api_key: Optional[SecretStr] = Field(default=None, description="Qdrant API key")
+    qdrant_collection_name: Optional[str] = Field(default=None, description="Qdrant collection name")
+    qdrant_prefer_grpc: bool = Field(default=True, description="Use gRPC for Qdrant connections")
     
     @validator("sqlite_db_path", "faiss_index_path", "chromadb_path", pre=True)
     def resolve_paths(cls, v):
         """Resolve relative paths to absolute paths."""
         if v and not Path(v).is_absolute():
             return str(PROJECT_ROOT / v)
+        return v
+
+    @validator("vector_db_type")
+    def validate_vector_db_type(cls, v):
+        """Validate vector database type."""
+        valid_types = ["faiss", "chromadb", "pinecone", "qdrant"]
+        if v not in valid_types:
+            raise ValueError(f"Invalid vector_db_type: {v}. Must be one of {valid_types}")
         return v
 
 
@@ -45,7 +49,7 @@ class APISettings(BaseSettings):
     # OpenAI settings
     openai_api_key: Optional[SecretStr] = Field(default=None, description="OpenAI API key")
     openai_model: str = Field(default="gpt-4", description="OpenAI model to use")
-    embedding_model: str = Field(default="text-embedding-ada-002", description="OpenAI embedding model")
+    embedding_model: str = Field(default="text-embedding-3-small", description="OpenAI embedding model")
     fallback_embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2", description="Fallback embedding model")
     
     # SEC API settings
