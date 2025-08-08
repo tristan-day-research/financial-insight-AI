@@ -8,7 +8,7 @@ env.bak/
 venv.bak/
 
 # Docker info
-.docker-compose.yml
+docker-compose.yml
 
 # Cursor ignore file
 .cursorignore
