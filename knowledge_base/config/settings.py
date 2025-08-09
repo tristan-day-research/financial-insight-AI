@@ -22,8 +22,9 @@ class DatabaseSettings(BaseSettings):
     sqlite_db_path: str = Field(default="knowledge_base/data/financial_kb.db")
     
     # Qdrant Vector Database settings
-    qdrant_url: Optional[str] = Field(default=None, description="Qdrant server URL")
-    qdrant_api_key: Optional[SecretStr] = Field(default=None, description="Qdrant API key")
+    # qdrant_url: Optional[str] = Field(default=None, description="Qdrant server URL")
+    # qdrant_api_key: Optional[SecretStr] = Field(default=None, description="Qdrant API key")
+    qdrant_local_storage: Field(default="knowledge_base/data/qdrant_storage")
     qdrant_collection_name: Optional[str] = Field(default=None, description="Qdrant collection name")
     qdrant_prefer_grpc: bool = Field(default=True, description="Use gRPC for Qdrant connections")
     
@@ -67,6 +68,7 @@ class DataSettings(BaseSettings):
     # Data directories
     raw_data_path: str = Field(default="knowledge_base/data/raw")
     processed_data_path: str = Field(default="knowledge_base/data/processed")
+    processed_text_chunk_path = Field(default=f"{processed_data_path}/vector_chunks")
     output_path: str = Field(default="knowledge_base/data/outputs")
     
     # Document processing

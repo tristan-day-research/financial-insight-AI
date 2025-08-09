@@ -29,8 +29,9 @@ class QdrantVectorStore:
     def _initialize_qdrant(self) -> QdrantClient:
         """Initialize Qdrant client and ensure collection exists."""
         client = QdrantClient(
-            url=self.settings.database.qdrant_url,
-            api_key=self.settings.database.qdrant_api_key.get_secret_value() if self.settings.database.qdrant_api_key else None,
+            # url=self.settings.database.qdrant_url,
+            # api_key=self.settings.database.qdrant_api_key.get_secret_value() if self.settings.database.qdrant_api_key else None,
+            path=self.settings.database.qdrant_local_storage,  # Local storage path
             prefer_grpc=self.settings.database.qdrant_prefer_grpc
         )
 
@@ -41,7 +42,7 @@ class QdrantVectorStore:
             client.create_collection(
                 collection_name=self.collection_name,
                 vectors_config=models.VectorParams(
-                    size=1536,  # Default for OpenAI embeddings
+                    size=self.embeddings.embedding_size, 
                     distance=models.Distance.COSINE
                 )
             )
