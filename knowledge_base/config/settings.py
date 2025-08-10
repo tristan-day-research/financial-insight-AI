@@ -10,6 +10,7 @@ from pydantic_settings import BaseSettings
 from pydantic import Field, validator
 from pydantic.types import SecretStr
 import logging
+from pathlib import Path 
 
 # Project root directory
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -24,24 +25,24 @@ class DatabaseSettings(BaseSettings):
     # Qdrant Vector Database settings
     # qdrant_url: Optional[str] = Field(default=None, description="Qdrant server URL")
     # qdrant_api_key: Optional[SecretStr] = Field(default=None, description="Qdrant API key")
-    qdrant_local_storage: Field(default="knowledge_base/data/qdrant_storage")
+    qdrant_local_storage_path: str = Field(default="knowledge_base/data/qdrant_storage", description="location where Qdrant DB vectors and metadata will be store")
     qdrant_collection_name: Optional[str] = Field(default=None, description="Qdrant collection name")
     qdrant_prefer_grpc: bool = Field(default=True, description="Use gRPC for Qdrant connections")
     
-    @validator("sqlite_db_path", "faiss_index_path", "chromadb_path", pre=True)
+    @validator("sqlite_db_path", "qdrant_local_storage_path", pre=True)
     def resolve_paths(cls, v):
         """Resolve relative paths to absolute paths."""
         if v and not Path(v).is_absolute():
             return str(PROJECT_ROOT / v)
         return v
 
-    @validator("vector_db_type")
-    def validate_vector_db_type(cls, v):
-        """Validate vector database type."""
-        valid_types = ["faiss", "chromadb", "pinecone", "qdrant"]
-        if v not in valid_types:
-            raise ValueError(f"Invalid vector_db_type: {v}. Must be one of {valid_types}")
-        return v
+    # @validator("vector_db_type")
+    # def validate_vector_db_type(cls, v):
+    #     """Validate vector database type."""
+    #     valid_types = ["faiss", "chromadb", "pinecone", "qdrant"]
+    #     if v not in valid_types:
+    #         raise ValueError(f"Invalid vector_db_type: {v}. Must be one of {valid_types}")
+    #     return v
 
 
 class APISettings(BaseSettings):
@@ -68,13 +69,27 @@ class DataSettings(BaseSettings):
     # Data directories
     raw_data_path: str = Field(default="knowledge_base/data/raw")
     processed_data_path: str = Field(default="knowledge_base/data/processed")
-    processed_text_chunk_path = Field(default=f"{processed_data_path}/vector_chunks")
+    processed_text_chunk_path: str = Field(
+        default="knowledge_base/data/processed/vector_chunks",  # Direct string path
+        description="Stores the text chunks external to the vector db"
+    )
     output_path: str = Field(default="knowledge_base/data/outputs")
+
+    @validator('processed_text_chunk_path', pre=True, always=True)
+    def set_processed_text_chunk_path(cls, v, values):
+        if v is None:
+            return str(Path(values['processed_data_path']) / "vector_chunks")
+        return v
     
-    # Document processing
-    chunk_size: int = Field(default=1000, description="Size of text chunks for processing")
-    chunk_overlap: int = Field(default=200, description="Overlap between text chunks")
-    max_chunk_size: int = Field(default=2000, description="Maximum chunk size")
+    # Document processing for vector db chunking
+    raw_docs_base_path: str = Field(default="knowledge_base/data/raw", description="Base path for raw documents")
+    chunk_tokens: int = Field(default=1500, description="Target chunk size in tokens (approximated as chars for now)")
+    chunk_overlap: int = Field(default=200, description="Overlap between chunks")
+    batch_size_embed: int = Field(default=64, description="Batch size for API-based embeddings")
+    api_concurrency: int = Field(default=4, description="Max concurrent API requests for embeddings")
+    local_concurrency: int = Field(default=6, description="Max parallel threads for CPU-bound processing")
+    batch_size_local: int = Field(default=8, description="Batch size for local document processing")
+    chunk_output_path: str = Field(default="knowledge_base/data/processed/chunks.json", description="Output path for processed chunks")
     
     # File processing
     supported_formats: List[str] = Field(
@@ -119,7 +134,7 @@ class DataSettings(BaseSettings):
         description="Keywords used for financial content analysis and classification"
     )
     
-    @validator("raw_data_path", "processed_data_path", "output_path", pre=True)
+    @validator("raw_data_path", "processed_data_path", "output_path", "raw_docs_base_path", pre=True)
     def resolve_data_paths(cls, v):
         """Resolve relative paths to absolute paths."""
         if v and not Path(v).is_absolute():

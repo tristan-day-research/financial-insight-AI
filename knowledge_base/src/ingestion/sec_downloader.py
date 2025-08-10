@@ -362,7 +362,7 @@ class SECDownloader:
                     metadata = {
                         'ticker': ticker,
                         'type': filing_type,
-                        'file_path': str(filing_dir / 'full-submission.txt'),
+                        'file_path': str("knowledge_base/data/raw/" / filing_dir.relative_to(self.raw_dir) / 'full-submission.txt'),
                         'date': filings['reportDate'][idx],
                         'downloaded_at': datetime.now().isoformat(),
                         'file_size': os.path.getsize(filing_dir / 'full-submission.txt'),
@@ -377,7 +377,7 @@ class SECDownloader:
                         'has_balance_sheet': True,
                         'has_cash_flow': True,
                         'financial_keywords_count': 0,
-                        'metadata_path': str(filing_dir / 'metadata.json')
+                        'metadata_path': str("knowledge_base/data/raw/" / filing_dir.relative_to(self.raw_dir) / 'metadata.json')
                     }
                     
                     # Log the filings data structure for debugging
