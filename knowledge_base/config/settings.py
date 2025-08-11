@@ -69,27 +69,32 @@ class DataSettings(BaseSettings):
     # Data directories
     raw_data_path: str = Field(default="knowledge_base/data/raw")
     processed_data_path: str = Field(default="knowledge_base/data/processed")
+    # processed_text_chunk_path: str = Field(
+    #     default="knowledge_base/data/processed/vector_chunks",  # Direct string path
+    #     description="Stores the text chunks external to the vector db"
+    # )
     processed_text_chunk_path: str = Field(
-        default="knowledge_base/data/processed/vector_chunks",  # Direct string path
+        default=str(PROJECT_ROOT / "knowledge_base/data/processed/vector_chunks"),
         description="Stores the text chunks external to the vector db"
     )
     output_path: str = Field(default="knowledge_base/data/outputs")
 
-    @validator('processed_text_chunk_path', pre=True, always=True)
-    def set_processed_text_chunk_path(cls, v, values):
-        if v is None:
-            return str(Path(values['processed_data_path']) / "vector_chunks")
-        return v
+    # @validator('processed_text_chunk_path', pre=True, always=True)
+    # def set_processed_text_chunk_path(cls, v, values):
+    #     if v is None:
+    #         return str(Path(values['processed_data_path']) / "vector_chunks")
+    #     return v
     
     # Document processing for vector db chunking
     raw_docs_base_path: str = Field(default="knowledge_base/data/raw", description="Base path for raw documents")
-    chunk_tokens: int = Field(default=1500, description="Target chunk size in tokens (approximated as chars for now)")
+    chunk_tokens: int = Field(default=1000, description="Target chunk size in tokens (approximated as chars for now)")
     chunk_overlap: int = Field(default=200, description="Overlap between chunks")
     batch_size_embed: int = Field(default=64, description="Batch size for API-based embeddings")
     api_concurrency: int = Field(default=4, description="Max concurrent API requests for embeddings")
     local_concurrency: int = Field(default=6, description="Max parallel threads for CPU-bound processing")
     batch_size_local: int = Field(default=8, description="Batch size for local document processing")
-    chunk_output_path: str = Field(default="knowledge_base/data/processed/chunks.json", description="Output path for processed chunks")
+    num_workers: int = Field(default=4, description="Num workers for chunking batching")
+    # chunk_output_path: str = Field(default="knowledge_base/data/processed/chunks.json", description="Output path for processed chunks")
     
     # File processing
     supported_formats: List[str] = Field(

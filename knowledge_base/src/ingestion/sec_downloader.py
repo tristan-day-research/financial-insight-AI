@@ -7,8 +7,9 @@ import requests
 import time
 import logging
 import os
+import hashlib
 from pathlib import Path
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 from datetime import datetime, timedelta
 import json
 import re
@@ -323,6 +324,7 @@ class SECDownloader:
                     
                     base_url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/"
                     
+                    # First download with original names
                     if main_doc:
                         self._download_file(base_url + main_doc, filing_dir / 'full-submission.txt')
                     if xbrl_doc:
@@ -359,7 +361,22 @@ class SECDownloader:
                             company_info['title']
                         )
                     
+                    # Generate unique document ID and standardized filename
+                    doc_id = self._generate_doc_id(
+                        ticker,
+                        filing_type,
+                        filings['reportDate'][idx],
+                        filings['accessionNumber'][idx]
+                    )
+                    
+                    filename = self._generate_filename(
+                        ticker,
+                        filing_type,
+                        filings['reportDate'][idx]
+                    )
+                    
                     metadata = {
+                        'raw_doc_id': doc_id,
                         'ticker': ticker,
                         'type': filing_type,
                         'file_path': str("knowledge_base/data/raw/" / filing_dir.relative_to(self.raw_dir) / 'full-submission.txt'),
@@ -412,6 +429,24 @@ class SECDownloader:
         else:
             logger.error(f"Error downloading {url}: {response.status_code}")
     
+    def _generate_doc_id(self, ticker: str, filing_type: str, filing_date: str, accession_number: str) -> str:
+        """Generate a unique document ID using SHA-256 hash."""
+        # Combine key fields to create a unique string
+        unique_str = f"{ticker}_{filing_type}_{filing_date}_{accession_number}"
+        # Generate SHA-256 hash
+        hash_obj = hashlib.sha256(unique_str.encode())
+        # Return first 16 characters of the hash
+        return hash_obj.hexdigest()[:16]
+        
+    def _generate_filename(self, ticker: str, filing_type: str, filing_date: str) -> str:
+        """Generate standardized filename for SEC filings."""
+        # Clean and standardize components
+        clean_ticker = ticker.upper()
+        clean_type = filing_type.replace('-', '')
+        clean_date = filing_date.replace('-', '')
+        # Create filename with format: TICKER_SEC_TYPE_DATE
+        return f"{clean_ticker}_SEC_{clean_type}_{clean_date}"
+        
     def _get_relative_path(self, path: Path) -> str:
         """Convert absolute path to relative path from data directory."""
         try:
@@ -435,7 +470,7 @@ class SECDownloader:
         # Enhanced metadata for federated knowledge base
         enhanced_metadata = {
             # Document identification
-            "doc_id": metadata["accession_number"],  # Unique identifier
+            "doc_id": metadata["raw_doc_id"],  # Unique identifier (16-char SHA-256 hash)
             "ticker": metadata["ticker"],
             "filing_type": metadata["type"],
             "filing_date": metadata.get("period_of_report"),
