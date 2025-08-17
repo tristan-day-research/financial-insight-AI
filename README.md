@@ -1,4 +1,4 @@
-# 🚀 A revolutionary multi-tenant Retrieval-Augmented Generation (RAG) system that transforms financial documents into collective intelligence
+# 🚀 A multi-tenant Retrieval-Augmented Generation (RAG) system that transforms documents into collective intelligence
 
 A comprehensive Retrieval-Augmented Generation (RAG) system that transforms unstructured financial documents into an intelligent knowledge base for automated financial planning, reporting, and forecasting.
 
