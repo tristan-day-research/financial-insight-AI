@@ -122,8 +122,8 @@ class SECDataExtractor(BaseFinancialExtractor):
         try:
             tree = ET.parse(file_path)
             root = tree.getroot()
-            # Check for XBRL namespaces
-            return any('xbrl' in ns for ns in root.nsmap.values() if root.nsmap and ns)
+            # Check for XBRL elements in a portable way
+            return any('xbrl' in elem.tag.lower() for elem in root.iter())
         except:
             return False
 
