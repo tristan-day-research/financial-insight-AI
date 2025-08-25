@@ -12,7 +12,7 @@ Why this approach:
 Maximum Fidelity: XBRL provides exact, audited financial data
 Fallback Robustness: PDF parsing when XBRL unavailable
 Vector DB Synergy: Extract precise numbers for SQL, contextual narratives for vectors
-Regulatory Compliance: XBRL is the official structured forma
+Regulatory Compliance: XBRL is the official structured format.
 
 
 This extraction code prioritizes fidelity and accuracy through:
